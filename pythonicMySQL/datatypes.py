@@ -50,7 +50,12 @@ class MySQLType:
     def enum(cls, *values: str):
         return cls("enum", values)
 
-    def __init__(self, name: str, length: Union[str, int] = None, enum_values: Tuple[str] = None):
+    @classmethod
+    def timedelta(cls):
+        return cls("float", length="10,3", forced_type=datetime.timedelta)
+
+    def __init__(self, name: str, length: Union[str, int] = None, enum_values: Tuple[str] = None,
+                 forced_type: type = None):
         name = name.lower()
         if " " in name:
             name = name.split(" ")[0]
@@ -67,6 +72,7 @@ class MySQLType:
             self.name = name
             self.length = length
             self.enum_values = enum_values
+        self.forced_type = forced_type
 
     @property
     def description(self) -> str:
@@ -81,25 +87,38 @@ class MySQLType:
 
     @property
     def python_type(self) -> type:
-        if self.name == "tinyint" and self.length == 1:
-            return bool
-        elif self.name in ("tinyint", "int", "smallint", "mediumint", "bigint"):
-            return int
-        elif self.name in ("float", "double", "decimal"):
-            return float
-        elif self.name == "datetime":
-            return datetime.datetime
-        elif self.name == "time":
-            return datetime.time
-        elif self.name == "date":
-            return datetime.date
-        elif self.name in ("char", "varchar", "blob", "text", "tinyblob", "tinytext", "mediumblob", "mediumtext",
-                           "longblob", "longtext"):
-            return str
-        elif self.name == "enum":
-            return Union[Enum, str]
+        if self.forced_type is None:
+            if self.name == "tinyint" and self.length == 1:
+                return bool
+            elif self.name in ("tinyint", "int", "smallint", "mediumint", "bigint"):
+                return int
+            elif self.name in ("float", "double", "decimal"):
+                return float
+            elif self.name == "datetime":
+                return datetime.datetime
+            elif self.name == "time":
+                return datetime.time
+            elif self.name == "date":
+                return datetime.date
+            elif self.name in ("char", "varchar", "blob", "text", "tinyblob", "tinytext", "mediumblob", "mediumtext",
+                               "longblob", "longtext"):
+                return str
+            elif self.name == "enum":
+                return Union[Enum, str]
+            else:
+                raise KeyError
         else:
-            raise KeyError
+            return self.forced_type
+
+    def to_python_value(self, mysql_value):
+        if self.name == "tinyint" and self.length == 1:
+            return bool(mysql_value)
+        elif self.forced_type == datetime.timedelta:
+            return datetime.timedelta(seconds=mysql_value)
+
+    def to_mysql_value(self, python_value):
+        if isinstance(python_value, datetime.timedelta):
+            return python_value.seconds
 
     def __eq__(self, other: MySQLType):
         return other.name == self.name

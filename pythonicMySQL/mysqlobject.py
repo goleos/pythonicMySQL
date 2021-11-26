@@ -1,15 +1,15 @@
 from typing import Optional, List
-from pythonicMySQL.column import MySQLColumn
+from pythonicMySQL.column import Column
 from pythonicMySQL.datatypes import MySQLType
 
 
 class MySQLRow:
 
-    def __init__(self, mysql_columns: List[MySQLColumn], row_id: Optional[int] = None):
-        self.mysql_columns = [MySQLColumn.id_column()] + mysql_columns
+    def __init__(self, mysql_columns: List[Column], row_id: Optional[int] = None):
+        self.mysql_columns = [Column.id_column()] + mysql_columns
         self.mysql_row_id = row_id
 
-    def column_from_attribute(self, attribute: str) -> Optional[MySQLColumn]:
+    def column_from_attribute(self, attribute: str) -> Optional[Column]:
         if attribute[0] == "_":
             attribute = attribute[1:]
         for column in self.mysql_columns:
@@ -26,7 +26,7 @@ class MySQLRow:
         return result
 
     @staticmethod
-    def _convert_to_python_value(value, column: MySQLColumn):
+    def _convert_to_python_value(value, column: Column):
         result = value
         if column.mysql_type == MySQLType.bool():
             result = bool(value)
@@ -52,10 +52,23 @@ class MySQLRow:
 
 class MySQLObject(MySQLRow):
 
-    COLUMNS: List[MySQLColumn] = []
+    COLUMNS: List[Column] = []
 
     def __init__(self, **additional_attrs):
         columns = self.__class__.COLUMNS
         super().__init__(mysql_columns=columns)
         for attr, value in additional_attrs.items():
             self.__setattr__(attr, value)
+
+    @classmethod
+    def generate_init_script(cls) -> str:
+        arguments = ", ".join([f"{column.name}: {column.mysql_type.python_type.__name__}" for column in cls.COLUMNS])
+        variables = "\n".join([f"    self.{column.name} = {column.name}" for column in cls.COLUMNS])
+        script = f"""
+def __init__(self, {arguments}):
+    super().__init__()
+{variables}
+"""
+        print(script)
+        return script
+

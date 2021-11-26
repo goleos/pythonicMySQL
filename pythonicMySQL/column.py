@@ -2,7 +2,7 @@ from __future__ import annotations
 from pythonicMySQL.datatypes import MySQLType
 
 
-class MySQLColumn:
+class Column:
 
     ID_COLUMN_NAME = "id"
 
@@ -10,11 +10,11 @@ class MySQLColumn:
     def id_column(cls, name: str = None):
         if name is None:
             name = cls.ID_COLUMN_NAME
-        return MySQLColumn(name, MySQLType.int(11), unsigned=True, primary=True, auto_increment=True)
+        return Column(name, MySQLType.int(11), unsigned=True, primary=True, auto_increment=True)
 
     @classmethod
-    def from_describe_query(cls, desc: dict) -> MySQLColumn:
-        return MySQLColumn(
+    def from_describe_query(cls, desc: dict) -> Column:
+        return Column(
             name=desc['Field'],
             mysql_type=MySQLType(desc['Type'].decode()) if desc['Type'] is not None else None,
             not_null=True if desc['Null'].lower() == "no" else False,
@@ -53,3 +53,6 @@ class MySQLColumn:
 
     def __repr__(self):
         return self.description
+
+    def __eq__(self, other: Column):
+        return other.name == self.name

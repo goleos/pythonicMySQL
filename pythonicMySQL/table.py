@@ -1,14 +1,27 @@
 import mysql.connector
 from typing import List, Union
-from pythonicMySQL.column import MySQLColumn
+from pythonicMySQL.column import Column
 from pythonicMySQL.query import Query
 from pythonicMySQL.mysqlobject import MySQLObject
 
 
-class MySQLTable:
+class Table:
 
     mysql_connection = None
     mysql_cursor = None
+    object_type = None
+
+    def __init__(self, mysql_connection: mysql.connector.connection.MySQLConnection,
+                 database: str, table: str, object_type: MySQLObject.__class__, filter_query: Query=None):
+        Table.mysql_connection = mysql_connection
+        Table.mysql_cursor = Table.mysql_connection.cursor(dictionary=True)
+        self.__class__.object_type = object_type
+        self.table = table
+        self.database = database
+        if filter_query is None:
+            self.filter_query: Query = Query.select(database, table)
+        else:
+            self.filter_query = filter_query
 
     @classmethod
     def execute_query(cls, query: Query, commit: bool = False):
@@ -18,70 +31,72 @@ class MySQLTable:
             cls.mysql_connection.commit()
         return result
 
-    def __init__(self, database: str, table: str, object_type: MySQLObject.__class__, filter_query: Query=None):
-        if MySQLTable.mysql_cursor is None:
-            MySQLTable.mysql_cursor = MySQLTable.mysql_connection.cursor(dictionary=True)
-        self.table = table
-        self.database = database
-        self.object_type = object_type
-        if filter_query is None:
-            self.filter_query: Query = Query.select(database, table)
-        else:
-            self.filter_query = filter_query
-
     @property
-    def columns_description(self) -> List[MySQLColumn]:
+    def columns_description(self) -> List[Column]:
         query = Query(f"DESCRIBE `{self.database}`.`{self.table}`")
-        result = MySQLTable.execute_query(query)
+        result = Table.execute_query(query)
         columns = []
         for column_desc in result:
-            columns.append(MySQLColumn.from_describe_query(column_desc))
+            columns.append(Column.from_describe_query(column_desc))
         return columns
 
     @property
     def create_query(self) -> Query:
-        columns = [MySQLColumn.id_column()] + self.object_type.COLUMNS
+        columns = [Column.id_column()] + self.object_type.COLUMNS
         columns_expression = ", \n".join(column.description for column in columns)
         query = f"CREATE TABLE IF NOT EXISTS `{self.database}`.`{self.table}` ( {columns_expression})"
         return Query(query)
 
-    def get(self, query: Query=None) -> List[MySQLObject]:
+    @classmethod
+    def generate_class_script(cls, database: str, table: str, object_type: type):
+        script = f"""
+    def __init__(self):
+        super({cls.__name__}, self).__init__(mysql_connection=conn, database="{database}", table="{table}", 
+                                            object_type={object_type.__name__})
+        
+    def get(self, query: Query=None) -> List[{object_type.__name__}]:
+        return super({cls.__name__}, self).get(query)
+"""
+        print(script)
+        return script
+
+    def get(self, query: Query=None):
         if query is None:
             query = self.filter_query
-        data = MySQLTable.execute_query(query).fetchall()
+        data = Table.execute_query(query).fetchall()
         result = []
         for item in data:
-            id_ = item.pop(MySQLColumn.ID_COLUMN_NAME)
-            obj = self.object_type(**item)
+            id_ = item.pop(Column.ID_COLUMN_NAME)
+            obj = self.__class__.object_type(**item)
             obj.mysql_row_id = id_
             result.append(obj)
         return result
 
-    def insert(self, obj: MySQLObject, commit=True):
+    def insert(self, obj: MySQLObject, commit=True) -> mysql.connector.connection.MySQLCursor:
         dictionary = obj.as_dict()
         query = Query.insert(self.database, self.table, dictionary)
-        cursor = MySQLTable.execute_query(query, commit=commit)
+        cursor = Table.execute_query(query, commit=commit)
         return cursor
 
-    def insert_or_update(self, obj: MySQLObject, commit=True):
+    def insert_or_update(self, obj: MySQLObject, commit=True) -> mysql.connector.connection.MySQLCursor:
         dictionary = obj.as_dict()
         query = Query.insert_on_duplicate_key_update(self.database, self.table, dictionary)
-        cursor = MySQLTable.execute_query(query, commit=commit)
+        cursor = Table.execute_query(query, commit=commit)
         self.set_autoincrement(1)
         return cursor
 
-    def update(self, obj: MySQLObject, commit=True):
+    def update(self, obj: MySQLObject, commit=True) -> mysql.connector.connection.MySQLCursor:
         query = Query.update(self.database, self.table, mysql_id=obj.mysql_row_id, dictionary=obj.as_dict())
-        cursor = MySQLTable.execute_query(query, commit=commit)
+        cursor = Table.execute_query(query, commit=commit)
         self.set_autoincrement(1)
         return cursor
 
     def set_autoincrement(self, value: int):
         query = Query(f"ALTER TABLE `{self.database}`.`{self.table}` AUTO_INCREMENT = {value}")
-        MySQLTable.execute_query(query, commit=True)
+        Table.execute_query(query, commit=True)
 
     def create(self):
-        MySQLTable.execute_query(self.create_query, True)
+        Table.execute_query(self.create_query, True)
 
     def __getitem__(self, item: Union[tuple, int]) -> MySQLObject:
         if isinstance(item, tuple) and len(item) == 2:
