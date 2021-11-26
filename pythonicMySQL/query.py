@@ -57,4 +57,8 @@ class Query:
             return None
 
     def __repr__(self):
-        return self.string
+        string = self.string
+        if isinstance(self._insertions, list):
+            for item in self._insertions:
+                string.replace("%s", str(item), 1)
+        return string

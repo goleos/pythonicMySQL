@@ -3,6 +3,7 @@ from typing import List, Union
 from pythonicMySQL.column import Column
 from pythonicMySQL.query import Query
 from pythonicMySQL.mysqlobject import MySQLObject
+from pythonicMySQL.sqlresponse import SQLResponse, OneDMLSQLResponse
 
 
 class Table:
@@ -24,7 +25,7 @@ class Table:
             self.filter_query = filter_query
 
     @classmethod
-    def execute_query(cls, query: Query, commit: bool = False):
+    def execute_query(cls, query: Query, commit: bool = False) -> mysql.connector.connection.MySQLCursorDict:
         cls.mysql_cursor.execute(query.string, query.insertions)
         result = cls.mysql_cursor
         if commit:
@@ -60,10 +61,11 @@ class Table:
         print(script)
         return script
 
-    def get(self, query: Query=None):
+    def get(self, query: Query=None) -> List[MySQLObject]:
         if query is None:
             query = self.filter_query
-        data = Table.execute_query(query).fetchall()
+        response = SQLResponse(Table.execute_query(query))
+        data = response.data
         result = []
         for item in data:
             id_ = item.pop(Column.ID_COLUMN_NAME)
@@ -72,24 +74,26 @@ class Table:
             result.append(obj)
         return result
 
-    def insert(self, obj: MySQLObject, commit=True) -> mysql.connector.connection.MySQLCursor:
+    def insert(self, obj: MySQLObject, commit=True) -> OneDMLSQLResponse:
         dictionary = obj.as_dict()
         query = Query.insert(self.database, self.table, dictionary)
         cursor = Table.execute_query(query, commit=commit)
-        return cursor
+        return OneDMLSQLResponse(cursor)
 
-    def insert_or_update(self, obj: MySQLObject, commit=True) -> mysql.connector.connection.MySQLCursor:
+    def insert_or_update(self, obj: MySQLObject, commit=True) -> OneDMLSQLResponse:
         dictionary = obj.as_dict()
         query = Query.insert_on_duplicate_key_update(self.database, self.table, dictionary)
         cursor = Table.execute_query(query, commit=commit)
+        response = OneDMLSQLResponse(cursor)
         self.set_autoincrement(1)
-        return cursor
+        return response
 
-    def update(self, obj: MySQLObject, commit=True) -> mysql.connector.connection.MySQLCursor:
+    def update(self, obj: MySQLObject, commit=True) -> OneDMLSQLResponse:
         query = Query.update(self.database, self.table, mysql_id=obj.mysql_row_id, dictionary=obj.as_dict())
         cursor = Table.execute_query(query, commit=commit)
+        response = OneDMLSQLResponse(cursor)
         self.set_autoincrement(1)
-        return cursor
+        return response
 
     def set_autoincrement(self, value: int):
         query = Query(f"ALTER TABLE `{self.database}`.`{self.table}` AUTO_INCREMENT = {value}")
