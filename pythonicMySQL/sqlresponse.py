@@ -50,9 +50,11 @@ class OneDMLSQLResponse(SQLResponse):
         return True if self.rowcount == 1 else False
 
     def __repr__(self):
+        query_string = self.query.string
+        query_string.replace("\n", " ")
         return str({
             "assigned_id": self.assigned_id,
             "had_effect": self.had_effect,
             "row_created": self.row_created,
-            "query": self.query
+            "query": query_string
         })
