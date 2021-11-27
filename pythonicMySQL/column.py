@@ -1,4 +1,3 @@
-from __future__ import annotations
 from pythonicMySQL.datatypes import MySQLType
 
 
@@ -13,7 +12,7 @@ class Column:
         return Column(name, MySQLType.int(11), unsigned=True, primary=True, auto_increment=True)
 
     @classmethod
-    def from_describe_query(cls, desc: dict) -> Column:
+    def from_describe_query(cls, desc: dict):
         return Column(
             name=desc['Field'],
             mysql_type=MySQLType(desc['Type'].decode()) if desc['Type'] is not None else None,
@@ -54,5 +53,5 @@ class Column:
     def __repr__(self):
         return self.description
 
-    def __eq__(self, other: Column):
+    def __eq__(self, other):
         return other.name == self.name

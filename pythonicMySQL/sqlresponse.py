@@ -1,5 +1,3 @@
-import copy
-
 from mysql.connector.cursor import MySQLCursorDict
 from pythonicMySQL.query import Query
 from typing import List

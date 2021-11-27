@@ -1,4 +1,3 @@
-from __future__ import annotations
 import datetime
 from typing import Union, Tuple, overload
 from enum import Enum
@@ -120,7 +119,7 @@ class MySQLType:
         if isinstance(python_value, datetime.timedelta):
             return python_value.seconds
 
-    def __eq__(self, other: MySQLType):
+    def __eq__(self, other):
         return other.name == self.name
 
     def __repr__(self):
