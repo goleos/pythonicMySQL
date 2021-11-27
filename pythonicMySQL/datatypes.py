@@ -54,6 +54,14 @@ class MySQLType:
     def timedelta(cls):
         return cls("float", length="10,3", forced_type=datetime.timedelta)
 
+    @classmethod
+    def json(cls):
+        return cls("json")
+
+    @classmethod
+    def decimal(cls, maximum_total_digits: int = 10, decimal_places: int = 2):
+        return cls("decimal", length=f"{maximum_total_digits},{decimal_places}")
+
     def __init__(self, name: str, length: Union[str, int] = None, enum_values: Tuple[str] = None,
                  forced_type: type = None):
         name = name.lower()
@@ -104,7 +112,9 @@ class MySQLType:
                                "longblob", "longtext"):
                 return str
             elif self.name == "enum":
-                return Union[Enum, str]
+                return Enum
+            elif self.name == "json":
+                return dict
             else:
                 raise KeyError
         else:

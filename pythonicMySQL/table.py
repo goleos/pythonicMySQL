@@ -82,7 +82,7 @@ class Table:
 
     def insert_or_update(self, obj: MySQLObject, commit=True) -> OneDMLSQLResponse:
         dictionary = obj.as_dict()
-        query = Query.insert_on_duplicate_key_update(self.database, self.table, dictionary)
+        query = Query.insert(self.database, self.table, dictionary, update_if_duplicate_key=True)
         cursor = Table.execute_query(query, commit=commit)
         response = OneDMLSQLResponse(cursor)
         self.set_autoincrement(1)
