@@ -1,6 +1,5 @@
 from typing import Optional, List
-from pythonicMySQL.column import Column
-from pythonicMySQL.datatypes import MySQLType
+from pythonicMySQL.constructor.column import Column
 
 
 class MySQLRow:
@@ -17,19 +16,12 @@ class MySQLRow:
                 return column
         return None
 
-    def as_dict(self) -> dict:
+    def as_mysql_dict(self) -> dict:
         result = {}
         for key, value in vars(self).items():
             column = self.column_from_attribute(key)
             if column is not None:
-                result[column.name] = value
-        return result
-
-    @staticmethod
-    def _convert_to_python_value(value, column: Column):
-        result = value
-        if column.mysql_type == MySQLType.bool():
-            result = bool(value)
+                result[column.name] = column.mysql_type.convert_to_mysql(value)
         return result
 
     def __setattr__(self, key, value):
@@ -41,13 +33,15 @@ class MySQLRow:
                     raise NotImplementedError
                 elif key in restricted_column_names:
                     raise NotImplementedError
-            new_value = self._convert_to_python_value(value, self.column_from_attribute(key))
+            current_column = self.column_from_attribute(key)
+            if not isinstance(new_value, current_column.mysql_type.python_type):
+                new_value = current_column.mysql_type.convert_to_python(value)
         except AttributeError:
             pass
         super().__setattr__(key, new_value)
 
     def __repr__(self):
-        return str(self.as_dict())
+        return str(self.as_mysql_dict())
 
 
 class MySQLObject(MySQLRow):
@@ -59,16 +53,4 @@ class MySQLObject(MySQLRow):
         super().__init__(mysql_columns=columns)
         for attr, value in additional_attrs.items():
             self.__setattr__(attr, value)
-
-    @classmethod
-    def generate_init_script(cls) -> str:
-        arguments = ", ".join([f"{column.name}: {column.mysql_type.python_type.__name__}" for column in cls.COLUMNS])
-        variables = "\n".join([f"    self.{column.name} = {column.name}" for column in cls.COLUMNS])
-        script = f"""
-def __init__(self, {arguments}):
-    super().__init__()
-{variables}
-"""
-        print(script)
-        return script
 
