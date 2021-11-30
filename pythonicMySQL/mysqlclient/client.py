@@ -73,5 +73,9 @@ class Client:
         query = f"CREATE TABLE IF NOT EXISTS `{database}`.`{table}` ( {columns_expression})"
         return self.execute_query(Query(query), commit=True)
 
+    def update_table_columns(self, database, table, column_descriptions: List[str]):
+        columns_expression = ", \n".join(column_descriptions)
+        query = f"ALTER TABLE `{database}`.`{table}` MODIFY {columns_expression}"
+        return self.execute_query(Query(query), commit=True)
 
 

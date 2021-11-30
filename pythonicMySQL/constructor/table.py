@@ -9,6 +9,7 @@ from pythonicMySQL.mysqlclient.client import Client
 class Table:
 
     object_type = None
+    client = None
 
     def __init__(self, mysql_connection: mysql.connector.connection.MySQLConnection,
                  database: str, table: str, object_type: MySQLObject.__class__, ascending: bool = True, limit: int = None, offset: int = 0,
@@ -17,7 +18,8 @@ class Table:
         self.limit = limit
         self.offset = offset
         self.where = where
-        self.client = Client(mysql_connection)
+        self.__class__.client = Client(mysql_connection)
+        self.client = self.__class__.client
         self.__class__.object_type = object_type
         self.table = table
         self.database = database
@@ -33,6 +35,11 @@ class Table:
         columns = [Column.id_column()] + self.object_type.COLUMNS
         descriptions = [column.description for column in columns]
         return self.client.create_table(self.database, self.table, descriptions)
+
+    def update_columns(self):
+        columns = [Column.id_column()] + self.object_type.COLUMNS
+        descriptions = [column.description for column in columns]
+        self.__class__.client.update_table_columns(self.database, self.table, descriptions)
 
     def get(self) -> List[MySQLObject]:
         result = self.client.select(self.database, self.table,
