@@ -22,12 +22,12 @@ class Table:
         self.table = table
         self.database = database
 
-    def get_columns(self) -> List[Column]:
-        result = self.client.describe_columns(self.database, self.table).fetchall()
-        columns = []
-        for column_desc in result:
-            columns.append(Column.from_describe_query(column_desc))
-        return columns
+    def validate_columns(self):
+        mysql_description = self.client.describe_columns(self.database, self.table).fetchall()
+        assigned_columns = self.__class__.object_type.COLUMNS + Column.id_column()
+        for desc in mysql_description:
+            if desc["Field"] not in [column.name for column in assigned_columns]:
+                raise ValueError("Columns do not match")
 
     def create(self):
         columns = [Column.id_column()] + self.object_type.COLUMNS

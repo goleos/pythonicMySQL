@@ -21,7 +21,9 @@ class MySQLRow:
         for key, value in vars(self).items():
             column = self.column_from_attribute(key)
             if column is not None:
+                print(column.mysql_type)
                 result[column.name] = column.mysql_type.convert_to_mysql(value)
+        print(result)
         return result
 
     def __setattr__(self, key, value):

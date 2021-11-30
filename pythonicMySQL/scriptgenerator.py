@@ -1,4 +1,5 @@
-from pythonicMySQL import Column, MySQLType
+from pythonicMySQL.constructor import Column
+from pythonicMySQL.datatypes import MySQLType
 from typing import List
 
 
@@ -56,15 +57,16 @@ class {class_name}:
 
 
 if __name__ == "__main__":
+    pass
 
-    gen = ScriptGenerator("HelloW", "music", "song", columns=[
-            Column("title", MySQLType.varchar()),
-            Column("artist", MySQLType.varchar()),
-            Column("album", MySQLType.varchar()),
-            Column("datetime_played_UTC", MySQLType.datetime(), unique=True),
-            Column("deezer_id", MySQLType.varchar()),
-            Column("explicit", MySQLType.bool()),
-            Column("duration", MySQLType.timedelta())
-    ])
+    # gen = ScriptGenerator("HelloW", "music", "song", columns=[
+    #         Column("title", MySQLType.varchar()),
+    #         Column("artist", MySQLType.varchar()),
+    #         Column("album", MySQLType.varchar()),
+    #         Column("datetime_played_UTC", MySQLType.datetime(), unique=True),
+    #         Column("deezer_id", MySQLType.varchar()),
+    #         Column("explicit", MySQLType.bool()),
+    #         Column("duration", MySQLType.timedelta())
+    # ])
 
-    gen.generate()
+    # gen.generate()

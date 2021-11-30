@@ -2,13 +2,13 @@ from pythonicMySQL.datatypes.mysqltypes import MySQLType
 import datetime
 
 
-class BOOL(MySQLType):
+class BOOLEAN(MySQLType):
 
     def __init__(self):
-        super(BOOL, self).__init__("tinyint", length=1)
+        super(BOOLEAN, self).__init__("tinyint", length=1, python_type=bool)
 
     def convert_to_mysql(self, python_value) -> object:
-        return python_value
+        return 1 if python_value is True else 0
 
     def convert_to_python(self, mysql_value) -> object:
         if not isinstance(mysql_value, int):
@@ -19,7 +19,7 @@ class BOOL(MySQLType):
 class TIMEDELTA(MySQLType):
 
     def __init__(self):
-        super(TIMEDELTA, self).__init__("decimal", length="10,3")
+        super(TIMEDELTA, self).__init__("decimal", length="10,3", python_type=datetime.timedelta)
 
     def convert_to_python(self, mysql_value) -> datetime.timedelta:
         return datetime.timedelta(seconds=float(mysql_value))

@@ -1,4 +1,5 @@
-from pythonicMySQL.datatypes.mysqltypes import MySQLType
+from pythonicMySQL.datatypes.mysqltypes import MySQLType, INT
+from typing import Union
 
 
 class Column:
@@ -9,7 +10,7 @@ class Column:
     def id_column(cls, name: str = None):
         if name is None:
             name = cls.ID_COLUMN_NAME
-        return Column(name, MySQLType.int(11), unsigned=True, primary=True, auto_increment=True)
+        return Column(name, INT(11), unsigned=True, primary=True, auto_increment=True)
 
     @classmethod
     def from_describe_query(cls, desc: dict):
@@ -22,7 +23,7 @@ class Column:
             default=desc['Default'].decode() if desc['Default'] is not None else None,
         )
 
-    def __init__(self, name: str, mysql_type: MySQLType, default: object = None, unsigned: bool = False,
+    def __init__(self, name: str, mysql_type: Union[MySQLType, MySQLType.__class__], default: object = None, unsigned: bool = False,
                  primary: bool = False, not_null: bool = False, unique: bool = False, auto_increment: bool = False):
         self.unsigned = unsigned
         self.auto_increment = auto_increment
@@ -30,7 +31,10 @@ class Column:
         self.not_null = not_null
         self.primary = primary
         self.default = default
-        self.mysql_type = mysql_type
+        if isinstance(mysql_type, MySQLType):
+            self.mysql_type = mysql_type
+        else:
+            self.mysql_type = mysql_type()
         self.name = name
 
     @property

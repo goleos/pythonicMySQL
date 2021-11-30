@@ -1,67 +1,45 @@
-import datetime
-from typing import Union, Tuple
-from enum import Enum
+from typing import Union, List
+from pythonicMySQL.datatypes.typeconversion import MYSQLTYPES
+from enum import EnumMeta
 
 
 class MySQLType:
 
-    def __init__(self, name: str, length: Union[str, int] = None, enum_values: Tuple[str] = None,
+    def __init__(self, name: str, length: Union[str, int] = None, enum_values: List[str] = None,
                  python_type: type = None):
-        name = name.lower()
-        if " " in name:
-            name = name.split(" ")[0]
-        if "(" in name:
-            split = name.split("(")
-            text = split[0]
-            self.name = text
-            replacement = split[1].replace(")", "")
-            try:
-                self.length = int(replacement)
-            except ValueError:
-                self.length = None
-        else:
-            self.name = name
-            self.length = length
-            self.enum_values = enum_values
+        name = name.upper()
+        # if " " in name:
+        #     name = name.split(" ")[0]
+        # if "(" in name:
+        #     split = name.split("(")
+        #     text = split[0]
+        #     self.name = text
+        #     replacement = split[1].replace(")", "")
+        #     try:
+        #         self.length = int(replacement)
+        #     except ValueError:
+        #         self.length = None
+        self.name = name
+        self.length = length
+        self.enum_values = enum_values
         self._python_type = python_type
 
     @property
     def description(self) -> str:
-        capitalised_name = self.name.upper()
         if self.length is not None:
-            return f"{capitalised_name}({str(self.length)})"
+            return f"{self.name}({str(self.length)})"
         elif self.enum_values is not None:
             values = (('\"' + value + '\"') for value in self.enum_values)
-            return f"{capitalised_name}({', '.join(values)})"
+            return f"{self.name}({', '.join(values)})"
         else:
-            return capitalised_name
+            return self.name
 
     @property
     def python_type(self) -> type:
-        if self._python_type is None:
-            if self.name == "tinyint" and self.length == 1:
-                return bool
-            elif self.name in ("tinyint", "int", "smallint", "mediumint", "bigint"):
-                return int
-            elif self.name in ("float", "double", "decimal"):
-                return float
-            elif self.name == "datetime":
-                return datetime.datetime
-            elif self.name == "time":
-                return datetime.time
-            elif self.name == "date":
-                return datetime.date
-            elif self.name in ("char", "varchar", "blob", "text", "tinyblob", "tinytext", "mediumblob", "mediumtext",
-                               "longblob", "longtext"):
-                return str
-            elif self.name == "enum":
-                return Enum
-            elif self.name == "json":
-                return dict
-            else:
-                raise KeyError
+        if not self._python_type:
+            return MYSQLTYPES[self.name]
         else:
-            return self.python_type
+            return self._python_type
 
     def convert_to_python(self, mysql_value) -> object:
         return mysql_value
@@ -77,49 +55,80 @@ class MySQLType:
 
 
 # MySQL DataTypes
-def INT(digits: int = 5) -> MySQLType:
-    return MySQLType("int", digits)
+class INT(MySQLType):
+
+    def __init__(self, digits: int = 5):
+        super().__init__("int", digits)
 
 
-def DATETIME() -> MySQLType:
-    return MySQLType("datetime")
+class DATETIME(MySQLType):
+
+    def __init__(self):
+        super().__init__("datetime")
 
 
-def TIME() -> MySQLType:
-    return MySQLType("time")
+class TIME(MySQLType):
+
+    def __init__(self):
+        super().__init__("time")
 
 
-def DATE() -> MySQLType:
-    return MySQLType("date")
+class DATE(MySQLType):
+
+    def __init__(self):
+        super().__init__("date")
 
 
-def FLOAT(display_length: int = 10, number_of_decimals: int = 2) -> MySQLType:
-    return MySQLType("float", length=f"{str(display_length)},{str(number_of_decimals)}")
+class FLOAT(MySQLType):
+
+    def __init__(self, display_length: int = 10, number_of_decimals: int = 2):
+        super().__init__("float", length=f"{str(display_length)},{str(number_of_decimals)}")
 
 
-def VARCHAR(characters: int = 255) -> MySQLType:
-    return MySQLType("varchar", characters)
+class VARCHAR(MySQLType):
+
+    def __init__(self, characters: int = 255):
+        super().__init__("varchar", characters)
 
 
-def TINYTEXT() -> MySQLType:
-    return MySQLType("tinytext")
+class TINYTEXT(MySQLType):
+
+    def __init__(self):
+        super().__init__("tinytext")
 
 
-def MEDIUMTEXT() -> MySQLType:
-    return MySQLType("mediumtext")
+class MEDIUMTEXT(MySQLType):
+
+    def __init__(self):
+        super().__init__("mediumtext")
 
 
-def LONGTEXT() -> MySQLType:
-    return MySQLType("longtext")
+class LONGTEXT(MySQLType):
+
+    def __init__(self):
+        super().__init__("longtext")
 
 
-def ENUM(*values: str) -> MySQLType:
-    return MySQLType("enum", values)
+class ENUM(MySQLType):
+    
+    def __init__(self, enum: EnumMeta):
+        self.enum = enum
+        super(ENUM, self).__init__(name="enum", enum_values=[str(e.value) for e in self.enum])
+
+    def convert_to_mysql(self, python_value: EnumMeta) -> str:
+        return str(python_value.value)
+
+    def convert_to_python(self, mysql_value: str) -> EnumMeta:
+        return self.enum(mysql_value)
 
 
-def JSON() -> MySQLType:
-    return MySQLType("json")
+class JSON(MySQLType):
+
+    def __init__(self):
+        super().__init__("json")
 
 
-def DECIMAL(maximum_total_digits: int = 10, decimal_places: int = 2) -> MySQLType:
-    return MySQLType("decimal", length=f"{maximum_total_digits},{decimal_places}")
+class DECIMAL(MySQLType):
+
+    def __init__(self, maximum_total_digits: int = 10, decimal_places: int = 2):
+        super().__init__("decimal", length=f"{maximum_total_digits},{decimal_places}")
