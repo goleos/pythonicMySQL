@@ -1,5 +1,5 @@
 import mysql.connector
-from typing import List, Union
+from typing import List, Union, TypeVar
 from pythonicMySQL.constructor.column import Column
 from pythonicMySQL.constructor.mysqlobject import MySQLObject
 from pythonicMySQL.mysqlclient.response import SQLResponse, OneDMLSQLResponse
@@ -7,6 +7,7 @@ from pythonicMySQL.mysqlclient.client import Client
 
 
 class Table:
+    # T = TypeVar("T", Table)
 
     object_type = None
     client = None

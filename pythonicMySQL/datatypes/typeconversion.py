@@ -2,7 +2,7 @@ import datetime
 import enum
 from typing import Dict
 
-MYSQLTYPES: Dict[str: type] = {
+MYSQLTYPES = {
     "INT": int,
     "DATETIME": datetime.datetime,
     "TIME": datetime.time,

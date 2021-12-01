@@ -1,58 +1,90 @@
-from typing import Optional, List
+from typing import Optional, List, Union, overload, Literal
 from pythonicMySQL.constructor.column import Column
+from pythonicMySQL.constructor import *
+from pythonicMySQL.datatypes import *
+from dataclasses import dataclass, field, fields
 
 
-class MySQLRow:
+@dataclass
+class MySQLObject:
 
-    def __init__(self, mysql_columns: List[Column], row_id: Optional[int] = None):
-        self.mysql_columns = [Column.id_column()] + mysql_columns
-        self.mysql_row_id = row_id
+    row_id: int = field(default=None, init=False, metadata={"name": "id", "mysql_type": INT(11), "unsigned": True,
+                                                            "primary": True, "auto_increment": True})
 
-    def column_from_attribute(self, attribute: str) -> Optional[Column]:
-        if attribute[0] == "_":
-            attribute = attribute[1:]
-        for column in self.mysql_columns:
-            if attribute == column.name:
-                return column
-        return None
+    def __post_init__(self):
+        for key, value in vars(self).items():
+            column = columns(self, key)
+            if column is not None and not isinstance(value, column.mysql_type.python_type):
+                print(key)
+                self.__setattr__(key, column.mysql_type.convert_to_python(value))
 
     def as_mysql_dict(self) -> dict:
         result = {}
         for key, value in vars(self).items():
-            column = self.column_from_attribute(key)
+            column = columns(self, key)
             if column is not None:
-                print(column.mysql_type)
                 result[column.name] = column.mysql_type.convert_to_mysql(value)
-        print(result)
         return result
 
-    def __setattr__(self, key, value):
-        new_value = value
-        try:
-            restricted_column_names = [column.name for column in self.mysql_columns]
-            if self.mysql_row_id is not None:
-                if key == "mysql_row_id" and value is not None:
-                    raise NotImplementedError
-                elif key in restricted_column_names:
-                    raise NotImplementedError
-            current_column = self.column_from_attribute(key)
-            if not isinstance(new_value, current_column.mysql_type.python_type):
-                new_value = current_column.mysql_type.convert_to_python(value)
-        except AttributeError:
-            pass
-        super().__setattr__(key, new_value)
 
-    def __repr__(self):
-        return str(self.as_mysql_dict())
+def column(mysql_type: Union[MySQLType, MySQLType.__class__], *flags: dict, default=None, unsigned: bool = False,
+           null: bool = False, unique: bool = False):
+    if isinstance(mysql_type, type):
+        mysql_type = mysql_type()
+    metadata = {
+        "mysql_type": mysql_type,
+        "default": default,
+        "unsigned": unsigned,
+        "null": null,
+        "unique": unique
+    }
+    for flag in flags:
+        metadata = {**metadata, **flag}
+    if default is not None:
+        return field(default=default, metadata=metadata)
+    else:
+        return field(metadata=metadata)
 
 
-class MySQLObject(MySQLRow):
+@overload
+def columns(mysql_object: Union[MySQLObject, MySQLObject.__class__], attribute: str) -> Optional[Column]: ...
 
-    COLUMNS: List[Column] = []
 
-    def __init__(self, **additional_attrs):
-        columns = self.__class__.COLUMNS
-        super().__init__(mysql_columns=columns)
-        for attr, value in additional_attrs.items():
-            self.__setattr__(attr, value)
+@overload
+def columns(mysql_object: Union[MySQLObject, MySQLObject.__class__], attribute: Literal[None]) -> List[Column]: ...
 
+
+def columns(mysql_object: Union[MySQLObject, MySQLObject.__class__],
+            attribute: Optional[str] = None) -> Union[List[Column], Column, None]:
+    if isinstance(mysql_object, MySQLObject):
+        mysql_object = mysql_object.__class__
+    columns_ = []
+    if attribute is None:
+        fields_ = fields(mysql_object)
+    else:
+        fields_ = [item for item in fields(mysql_object) if item.name == attribute]
+    for field_ in fields_:
+        if "mysql_type" in dict(field_.metadata).keys():
+            metadata = {**{"name": field_.name}, **field_.metadata}
+            columns_.append(Column(**metadata))
+    if attribute is not None and len(columns_) == 1:
+        return columns_[0]
+    elif attribute is not None and len(columns_) == 0:
+        return None
+    elif attribute is None:
+        return columns_
+    else:
+        raise KeyError
+
+if __name__ == "__main__":
+    @dataclass
+    class Song(MySQLObject):
+        name: str = column(VARCHAR)
+        artist: str = column(VARCHAR)
+        explicit: bool = column(BOOLEAN, default=False)
+
+
+    song = Song("sd", "ss", explicit=True)
+    print(song.explicit)
+    print([item.name for item in columns(Song)])
+    print(columns(Song, "namei"))
