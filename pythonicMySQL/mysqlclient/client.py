@@ -1,12 +1,17 @@
 import copy
 from mysql.connector.connection import MySQLConnection
+from pythonicMySQL.mysqlclient.response import SQLResponse, OneDMLSQLResponse
 from pythonicMySQL.mysqlclient.query import Query
 from typing import Union, List
 
 
 class Client:
 
-    def __init__(self, connection: MySQLConnection):
+    def __init__(self):
+        self.connection = None
+        self.cursor = None
+
+    def connect(self, connection: MySQLConnection):
         self.connection = connection
         self.cursor = connection.cursor(dictionary=True)
 
@@ -20,7 +25,7 @@ class Client:
         return self.cursor
 
     def select(self, database: str, table: str,
-               ascending: bool = True, limit: int = None, offset: int = 0, where: Union[dict, str] = " "):
+               ascending: bool = True, limit: int = None, offset: int = 0, where: Union[dict, str] = " ") -> SQLResponse:
         select = f" SELECT * FROM `{database}`.`{table}` "
         if isinstance(where, dict):
             where_strings = [f"`{wkey}` = %s" for wkey in where.keys()]
@@ -34,7 +39,7 @@ class Client:
             query = Query(query_string, tuple(where.values()))
         else:
             query = Query(query_string)
-        return self.execute_query(query)
+        return SQLResponse(self.execute_query(query))
 
     def insert(self, database, table, dictionary: dict, update_if_duplicate_key: bool = False,
                commit: bool = True, **kwargs):
@@ -46,7 +51,7 @@ class Client:
         else:
             query_string += f" ON DUPLICATE KEY UPDATE {set_string} "
             query = Query(query_string, tuple(insertion.values()) + tuple(insertion.values()))
-        result = copy.copy(self.execute_query(query, commit))
+        result = OneDMLSQLResponse(self.execute_query(query, commit))
         self.set_autoincrement(database, table, 1)
         return result
 
@@ -56,7 +61,7 @@ class Client:
         where_string = f" WHERE `id` = {str(mysql_id)} "
         query_string = f"UPDATE `{database}`.`{table}` SET {set_string} " + where_string
         query = Query(query_string, tuple(update_dict.values()))
-        result = copy.copy(self.execute_query(query, commit))
+        result = OneDMLSQLResponse(self.execute_query(query, commit))
         self.set_autoincrement(database, table, 1)
         return result
 
@@ -66,9 +71,12 @@ class Client:
 
     def describe_columns(self, database: str, table: str):
         query = Query(f"DESCRIBE `{database}`.`{table}`")
-        return self.execute_query(query)
+        return SQLResponse(self.execute_query(query))
 
-    def create_table(self, database: str, table: str, column_descriptions: List[str]):
+    def create_table(self, database: str, table: str, column_descriptions: List[str], create_database: bool = False):
+        if create_database:
+            dquery = f"CREATE DATABASE IF NOT EXISTS {database}"
+            self.execute_query(Query(dquery), commit=True)
         columns_expression = ", \n".join(column_descriptions)
         query = f"CREATE TABLE IF NOT EXISTS `{database}`.`{table}` ( {columns_expression})"
         return self.execute_query(Query(query), commit=True)
@@ -76,6 +84,12 @@ class Client:
     def update_table_columns(self, database, table, column_descriptions: List[str]):
         columns_expression = ", \n".join(column_descriptions)
         query = f"ALTER TABLE `{database}`.`{table}` MODIFY {columns_expression}"
+        print(query)
         return self.execute_query(Query(query), commit=True)
+
+    def get_number_of_rows(self, database, table):
+        query = f"SELECT COUNT(*) FROM `{database}`.`{table}`"
+        return self.execute_query(Query(query)).fetchall()[0]['COUNT(*)']
+
 
 

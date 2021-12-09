@@ -1,1 +1,1 @@
-from pythonicMySQL.scriptgenerator import ScriptGenerator
+from pythonicMySQL.mysqlclient import CLIENT
