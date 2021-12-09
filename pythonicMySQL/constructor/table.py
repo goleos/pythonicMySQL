@@ -37,7 +37,7 @@ class Table:
     def insert(self, obj: T, update_if_exists=False, commit: bool = True):
         if update_if_exists and len([column for column in columns(obj) if column.unique]) == 0:
             raise AssertionError("You cannot use update_if_exists when there are no unique keys")
-        return CLIENT.insert(self.database, self.table, self.to_mysql_dict(obj),
+        return CLIENT.insert(self.database, self.table, self.to_mysql_dict(obj, remove_id=True),
                              update_if_duplicate_key=update_if_exists, commit=commit)
 
     def update(self, mysql_id: int, obj: T, commit=True):
